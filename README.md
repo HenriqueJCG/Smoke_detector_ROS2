@@ -26,7 +26,7 @@ Repository for the code related to the Radar based EKF LiDAR-Radar fusion develo
 ```ros2 launch genz_icp odometry.launch.py topic:=/hesai/points```
 
 
-### [EKF](https://github.com/cra-ros-pkg/robot_localization/tree/noetic-devel)
+### [EKF](https://github.com/cra-ros-pkg/robot_localization/tree/jazzy-devel)
 
 ```ros2 launch robot_localization ekf.launch.py```
 

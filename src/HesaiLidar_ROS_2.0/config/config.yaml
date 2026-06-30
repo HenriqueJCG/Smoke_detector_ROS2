@@ -29,8 +29,8 @@ lidar:
         caFile: ""                                    # Represents the path of the CA certificate
 
       rosbag_type:
-        correction_file_path: "/home/henrique/ros2_ws/src/HesaiLidar_ROS_2.0/src/driver/HesaiLidar_SDK_2.0/correction/angle_correction/QT128C2X_Angle Correction File.csv" # The path of correction file
-        firetimes_path: "/home/henrique/ros2_ws/src/HesaiLidar_ROS_2.0/src/driver/HesaiLidar_SDK_2.0/correction/firetime_correction/QT128C2X_Firetime Correction File.csv" # The path of firetimes file
+        correction_file_path: "/home/henrique/radar_perception/src/HesaiLidar_ROS_2.0/src/driver/HesaiLidar_SDK_2.0/correction/angle_correction/QT128C2X_Angle Correction File.csv" # The path of correction file
+        firetimes_path: "/home/henrique/radar_perception/src/HesaiLidar_ROS_2.0/src/driver/HesaiLidar_SDK_2.0/correction/firetime_correction/QT128C2X_Firetime Correction File.csv" # The path of firetimes file
 
       pcap_type:
         pcap_path: "Your pcap file"                         # The path of pcap file
