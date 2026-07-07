@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'covariances = point_ratio.covariances:main',
             'point_ratio = point_ratio.point_ratio:main',
             'point_ratio_kdtree = point_ratio.point_ratio_kdtree:main',
             'radar_text_marker = point_ratio.radar_text_marker:main',

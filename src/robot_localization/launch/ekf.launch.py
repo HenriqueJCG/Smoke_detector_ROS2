@@ -27,13 +27,12 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
 
-    #bag_path = '/media/henrique/fruc-t9-1/agilex/2026_06_25_21_28_53__smokey1_' 
-    #bag_path = '/media/henrique/fruc-t9-1/agilex/2026_06_25_21_44_40__nosmokey_'
-    
+    bag_path = '/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/smokey' 
+    #bag_path = '/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/nosmokey'
     
     #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/first-no-smoke'
     #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/second-smoke'
-    bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/third-continuos-smoke'
+    #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/third-continuos-smoke'
 
     current_pkg = FindPackageShare("genz_icp")
 
@@ -85,6 +84,13 @@ def generate_launch_description():
             output="screen",
         ),
 
+        Node(
+            package="point_ratio",
+            executable="covariances",
+            name="covariances",
+            output="screen",
+        ),
+
         launch_ros.actions.Node(
             package='robot_localization',
             executable='ekf_node',
@@ -102,7 +108,7 @@ def generate_launch_description():
 
         # --- ROS2 Bag Play ---
         ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', LaunchConfiguration('bag_path'),'--clock','--rate', '1.0'],
+            cmd=['ros2', 'bag', 'play', LaunchConfiguration('bag_path'),'--clock','--rate', '0.5'],
             output='screen',
         ),
 ])
