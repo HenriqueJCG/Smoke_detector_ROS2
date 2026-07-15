@@ -22,38 +22,23 @@ class SmokeGatedCovarianceNode(Node):
     def __init__(self):
         super().__init__('smoke_gated_covariance_node')
 
-        # ---- topics ----
+        
         self.declare_parameter('lidar_odom_topic', '/genz/odometry')
         self.declare_parameter('radar_odom_topic', '/kiss/odometry')
         self.declare_parameter('smoke_topic', '/point_ratio')
         self.declare_parameter('lidar_odom_out_topic', '/odom/lidar')
         self.declare_parameter('radar_odom_out_topic', '/odom/radar')
 
-        # ---- trust model ----
-        # worst-case trust (0 < trust_min <= 1) each sensor can fall to
         self.declare_parameter('lidar_trust_min', 0.05)
         self.declare_parameter('radar_trust_min', 0.05)
-        # exponent applied to smoke probability before mapping to trust;
-        # 1.0 = linear, >1.0 = only reacts once smoke prob is quite high,
-        # <1.0 = reacts early/aggressively
         self.declare_parameter('smoke_gain', 1.0)
-        # flip which sensor is favored when smoke probability is high
-        self.declare_parameter('invert', True)
-        # if no smoke message received within this window, fall back to
-        # neutral trust (1.0, 1.0) rather than guessing
+        self.declare_parameter('invert', False)
         self.declare_parameter('smoke_timeout_sec', 1.0)
 
-        # ---- baseline covariance diagonals, used only if the raw message
-        # covariance is all-zero (see module docstring) ----
-        # order: x, y, z, roll, pitch, yaw
-        self.declare_parameter('lidar_baseline_pose_diag',
-                                [0.01, 0.01, 0.05, 0.02, 0.02, 0.02])
-        self.declare_parameter('lidar_baseline_twist_diag',
-                                [0.02, 0.02, 0.05, 0.02, 0.02, 0.02])
-        self.declare_parameter('radar_baseline_pose_diag',
-                                [0.05, 0.05, 0.20, 0.10, 0.10, 0.05])
-        self.declare_parameter('radar_baseline_twist_diag',
-                                [0.05, 0.05, 0.20, 0.10, 0.10, 0.05])
+        self.declare_parameter('lidar_baseline_pose_diag',[0.01, 0.01, 0.05, 0.02, 0.02, 0.02])
+        self.declare_parameter('lidar_baseline_twist_diag',[0.02, 0.02, 0.05, 0.02, 0.02, 0.02])
+        self.declare_parameter('radar_baseline_pose_diag',[0.05, 0.05, 0.20, 0.10, 0.10, 0.05])
+        self.declare_parameter('radar_baseline_twist_diag',[0.05, 0.05, 0.20, 0.10, 0.10, 0.05])
 
         gp = self.get_parameter
         self.lidar_topic = gp('lidar_odom_topic').value
@@ -74,8 +59,7 @@ class SmokeGatedCovarianceNode(Node):
         self.smoke_prob = 0.0
         self.last_smoke_stamp = None
 
-        qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
-                          history=HistoryPolicy.KEEP_LAST)
+        qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,history=HistoryPolicy.KEEP_LAST)
 
         self.create_subscription(Float32, self.smoke_topic, self._smoke_cb, qos)
         self.create_subscription(Odometry, self.lidar_topic, self._lidar_cb, qos)
@@ -107,9 +91,6 @@ class SmokeGatedCovarianceNode(Node):
 
         p = self.smoke_prob ** self.gain
 
-        # literal request: high smoke -> trust lidar more, radar less.
-        # set `invert:=true` to swap (usually the physically sensible choice
-        # for optical lidar + smoke/dust).
         lidar_trust = self.lidar_trust_min + (1.0 - self.lidar_trust_min) * p
         radar_trust = self.radar_trust_min + (1.0 - self.radar_trust_min) * (1.0 - p)
 

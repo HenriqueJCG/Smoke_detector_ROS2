@@ -122,9 +122,9 @@ void OdometryServer::initializeParameters(kiss_icp::pipeline::KISSConfig &config
     RCLCPP_INFO(this->get_logger(), "\tInvert odometry transform: %d", invert_odom_tf_);
     publish_debug_clouds_ = declare_parameter<bool>("publish_debug_clouds", publish_debug_clouds_);
     RCLCPP_INFO(this->get_logger(), "\tPublish debug clouds: %d", publish_debug_clouds_);
-    position_covariance_ = declare_parameter<double>("position_covariance", 0.1);
+    position_covariance_ = declare_parameter<double>("position_covariance", 0.05);
     RCLCPP_INFO(this->get_logger(), "\tPosition covariance: %.2f", position_covariance_);
-    orientation_covariance_ = declare_parameter<double>("orientation_covariance", 0.1);
+    orientation_covariance_ = declare_parameter<double>("orientation_covariance", 0.05);
     RCLCPP_INFO(this->get_logger(), "\tOrientation covariance: %.2f", orientation_covariance_);
 
     config.max_range = declare_parameter<double>("data.max_range", config.max_range);

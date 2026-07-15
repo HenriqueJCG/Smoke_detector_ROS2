@@ -14,32 +14,10 @@ class RadarTextMarker(Node):
         self._lidar_points = 1.0
         self._radar_points = 1.0
 
-        self.create_subscription(
-            Float64,
-            "/point_ratio",
-            self.callback,
-            10
-        )
-
-        self.create_subscription(
-            Float64,
-            "/lidar_points",
-            self.callback_lidar,
-            10
-        )
-
-        self.create_subscription(
-            Float64,
-            "/radar_points",
-            self.callback_radar,
-            10
-        )
-
-        self.pub = self.create_publisher(
-            Marker,
-            "visualization_marker",
-            10
-        )
+        self.create_subscription(Float64,"/point_ratio",self.callback,10)
+        self.create_subscription(Float64,"/lidar_points",self.callback_lidar,10)
+        self.create_subscription(Float64,"/radar_points",self.callback_radar,10)
+        self.pub = self.create_publisher(Marker,"visualization_marker",10)
 
     def callback_lidar(self, msg):
         self._lidar_points = msg.data

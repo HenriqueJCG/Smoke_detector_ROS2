@@ -237,12 +237,12 @@ void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
     odom_msg.header.frame_id = odom_frame_;
     odom_msg.pose.pose = tf2::sophusToPose(pose);
     odom_msg.pose.covariance.fill(0.0);
-    odom_msg.pose.covariance[0] = 0.1;
-    odom_msg.pose.covariance[7] = 0.1;
-    odom_msg.pose.covariance[14] = 0.1;
-    odom_msg.pose.covariance[21] = 0.1;
-    odom_msg.pose.covariance[28] = 0.1;
-    odom_msg.pose.covariance[35] = 0.1;
+    odom_msg.pose.covariance[0] = 0.05;
+    odom_msg.pose.covariance[7] = 0.05;
+    odom_msg.pose.covariance[14] = 0.05;
+    odom_msg.pose.covariance[21] = 0.05;
+    odom_msg.pose.covariance[28] = 0.05;
+    odom_msg.pose.covariance[35] = 0.05;
     odom_publisher_->publish(std::move(odom_msg));
 }
 

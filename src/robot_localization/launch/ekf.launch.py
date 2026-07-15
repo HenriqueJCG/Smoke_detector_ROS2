@@ -13,37 +13,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from launch import LaunchDescription
-from ament_index_python.packages import get_package_share_directory
 import launch_ros.actions
 import os
 import yaml
-from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 import pathlib
 import launch.actions
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch import LaunchDescription
+from ament_index_python.packages import get_package_share_directory
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+#Choose bag file to play
 def generate_launch_description():
 
-    bag_path = '/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/smokey' 
-    #bag_path = '/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/nosmokey'
-    
-    #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/first-no-smoke'
-    #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/second-smoke'
-    #bag_path ='/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/third-continuos-smoke'
+    def launch_setup(context, *args, **kwargs):
+
+        dataset = LaunchConfiguration("dataset").perform(context)
+
+        bag_paths = {
+            "polo1": "/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/nosmokey",
+            "polo2": "/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/smokey",
+            "pinhal1": "/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/first-no-smoke",
+            "pinhal2": "/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/second-smoke",
+            "pinhal3": "/media/henrique/T9/Datasets AgileX/PinhalMarrocos_04-06-2026/third-continuos-smoke",
+        }
+
+        if dataset not in bag_paths:
+            raise RuntimeError(
+                f"Unknown dataset '{dataset}'. "
+                f"Choose one of: {', '.join(bag_paths.keys())}"
+            )
+
+        bag_path = bag_paths[dataset]
+
+        return [
+            ExecuteProcess(
+            cmd=['ros2', 'bag', 'play', bag_path,'--clock','--rate', '0.5'],
+            output='screen',
+            )
+        ]
 
     current_pkg = FindPackageShare("genz_icp")
 
     return LaunchDescription([
 
-        DeclareLaunchArgument(
-            'bag_path',
-            default_value=bag_path,
-            description='Path to the ROS2 bag file'
-        ),
+        DeclareLaunchArgument("egovelocity",default_value="true"),
+        DeclareLaunchArgument("point_algorithm",default_value="kdtree"),
+        DeclareLaunchArgument("fusion",default_value="true"),
+        DeclareLaunchArgument("lidar",default_value="false"),
+        DeclareLaunchArgument("radar",default_value="false"),  
+        DeclareLaunchArgument("LiDAR_used",default_value="hesai"),
 
+        #Launch Hesai driver node for lidar pointcloud
         launch_ros.actions.Node(
             package='hesai_ros_driver',
             executable='hesai_ros_driver_node',
@@ -51,7 +75,7 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # --- GenZ-ICP Odometry (LiDAR) ---
+        #GenZ-ICP Odometry node (LiDAR/FMCW LiDAR) 
         ExecuteProcess(
             cmd=[
                 'ros2', 'launch', 'genz_icp', 'odometry.launch.py',
@@ -59,56 +83,99 @@ def generate_launch_description():
                 #'topic:=/aeva/ATLAS/point_cloud_compensated'
             ],
             output='screen',
+            condition=IfCondition(LaunchConfiguration("lidar")),
         ),
 
-        # --- KISS-ICP Odometry (Radar) ---
+        #KISS-ICP Odometry node (Radar) 
         ExecuteProcess(
             cmd=[
                 'ros2', 'launch', 'kiss_icp', 'odometry.launch.py',
                 'topic:=/sensrad/radar_1/radar_data'
             ],
             output='screen',
+            condition=IfCondition(LaunchConfiguration("radar")),
         ),
 
-        Node(
+        #Smoke probability node based on points from pointcloud
+        launch_ros.actions.Node(
             package="point_ratio",
             executable="point_ratio",
             name="point_ratio",
             output="screen",
             parameters=[{"mode": "hesai"}],
+            condition=IfCondition(PythonExpression(["'", LaunchConfiguration("point_algorithm"), "' == 'fov'"])),
         ),
-        Node(
+
+        launch_ros.actions.Node(
+            package="point_ratio",
+            executable="point_ratio_kdtree",
+            name="point_ratio",
+            output="screen",
+            parameters=[{"mode": "hesai"}],
+            condition=IfCondition(PythonExpression(["'", LaunchConfiguration("point_algorithm"), "' == 'kdtree'"])),
+        ),
+        
+
+
+        #Ego velocity estimation with Radaar/ FMCW LiDARs
+        launch_ros.actions.Node(
+            package="point_ratio",
+            executable="egovelocity",
+            name="egovelocity",
+            output="screen",
+            condition=IfCondition(LaunchConfiguration("egovelocity")),
+        ),
+
+        #Text marker node that publishes messages to visualize the point ratio in RViz2
+        launch_ros.actions.Node(
             package="point_ratio",
             executable="radar_text_marker",
             name="radar_text_marker",
             output="screen",
         ),
 
-        Node(
+        #Node that computes the covariances of the odometry messages based on the point ratio
+        launch_ros.actions.Node(
             package="point_ratio",
             executable="covariances",
             name="covariances",
             output="screen",
+            condition=IfCondition(LaunchConfiguration("fusion")),
         ),
 
+        #Node that computes the covariances of the odometry messages based on the point ratio
+        launch_ros.actions.Node(
+            package="point_ratio",
+            executable="restart_node",
+            name="restart_node",
+            output="screen",
+            condition=IfCondition(LaunchConfiguration("fusion")),
+        ),
+
+        #EKF node for sensor fusion
         launch_ros.actions.Node(
             package='robot_localization',
             executable='ekf_node',
             name='ekf_filter_node',
             output='screen',
             parameters=[os.path.join(get_package_share_directory("robot_localization"), 'params', 'ekf.yaml')],
+            condition=IfCondition(LaunchConfiguration("fusion")),
         ),
 
-        Node(
+
+        #Vizualisation of the results in RViz2
+        launch_ros.actions.Node(
                 package="rviz2",
                 executable="rviz2",
                 output={"both": "log"},
                 arguments=["-d", PathJoinSubstitution([current_pkg, "rviz", "genz_icp_ros2.rviz"])],
         ),
 
-        # --- ROS2 Bag Play ---
-        ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', LaunchConfiguration('bag_path'),'--clock','--rate', '0.5'],
-            output='screen',
+        # Play selected bag file with selected rate
+        DeclareLaunchArgument(
+            "dataset",
+            default_value="pinhal3",
+            description="Dataset to use"
         ),
+        OpaqueFunction(function=launch_setup)
 ])
