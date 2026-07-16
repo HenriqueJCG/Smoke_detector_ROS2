@@ -135,8 +135,29 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     }
     // clang-format on
 
+    // Optional initial pose seeding -- lets a wrapper (e.g. a restart
+    // manager) start GenZ-ICP at a known pose instead of always defaulting
+    // to identity. Off by default so normal startup behavior is unchanged.
+    const bool use_initial_pose = declare_parameter<bool>("use_initial_pose", false);
+    const double initial_x = declare_parameter<double>("initial_pose_x", 0.0);
+    const double initial_y = declare_parameter<double>("initial_pose_y", 0.0);
+    const double initial_z = declare_parameter<double>("initial_pose_z", 0.0);
+    const double initial_qx = declare_parameter<double>("initial_pose_qx", 0.0);
+    const double initial_qy = declare_parameter<double>("initial_pose_qy", 0.0);
+    const double initial_qz = declare_parameter<double>("initial_pose_qz", 0.0);
+    const double initial_qw = declare_parameter<double>("initial_pose_qw", 1.0);
+
     // Construct the main GenZ-ICP odometry node
     odometry_ = genz_icp::pipeline::GenZICP(config_);
+
+
+    if (use_initial_pose) {
+        const Eigen::Quaterniond q(initial_qw, initial_qx, initial_qy, initial_qz);
+        const Eigen::Vector3d t(initial_x, initial_y, initial_z);
+        odometry_.SetInitialPose(Sophus::SE3d(q, t));
+        RCLCPP_INFO(get_logger(), "GenZ-ICP seeded with initial pose (%.3f, %.3f, %.3f)",
+                    initial_x, initial_y, initial_z);
+    }
 
     // Initialize subscribers
     pointcloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
