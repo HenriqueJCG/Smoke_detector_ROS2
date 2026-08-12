@@ -17,7 +17,7 @@ class PointRatio(Node):
         self.match_threshold = self.declare_parameter("match_threshold", 1.0).value
         self.alpha = self.declare_parameter("smoothing", 0.1).value
         self.mode = self.declare_parameter("mode", "hesai").value
-
+        self.running = True
 
         # Initialize variables
         self.radar_points = 1.0
@@ -41,13 +41,15 @@ class PointRatio(Node):
 
         # ROS subscribers
         if self.mode == "hesai":
-            self.create_subscription(PointCloud2, "/hesai/points", self.lidar_callback, 10)
+            self.create_subscription(PointCloud2, "/hesai/points",               self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data", self.radar_callback, 10)
-
-        elif self.mode == "aeva":    
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/fitered_hesai", 10)
+        
+        elif self.mode == "aeva":
             self.create_subscription(PointCloud2, "/aeva/ATLAS/point_cloud_compensated", self.lidar_callback, 10)
-            self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data", self.radar_callback, 10)
-
+            self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data",         self.radar_callback, 10)
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_aeva", 10)
+        
     # Convert pointcloud message to numpy array of xyz coordinates
     def cloud_to_xyz(self, msg):
         pts = []
@@ -84,6 +86,14 @@ class PointRatio(Node):
             self.kdtree = cKDTree(self.lidar_xyz)
             self.kdtree_dirty = False
 
+        if self.prob<0.2:
+           self.running=False
+        elif self.prob>0.7 and not self.running:
+            self.running=True
+
+        if self.running:
+                self.pub_lidar_pcl.publish(msg)
+
     def radar_callback(self, msg):
 
         #See if KD-tree is available, if not, return
@@ -111,13 +121,13 @@ class PointRatio(Node):
         lidar_ratio = self.lidar_points / max(self.max_points, 1.0)
 
         #Calculate final probability as the average of the match ratio and the LiDAR ratio
-        prob = 0.5 * match_ratio + 0.5 * lidar_ratio
+        self.prob = 0.5 * match_ratio + 0.5 * lidar_ratio
 
-        self.publish(prob)
+        self.publish(self.prob)
 
         # Append time and probability to log for CSV export
         t = self.get_clock().now().nanoseconds / 1e9 - self.start_time
-        self.log.append([t, prob])
+        self.log.append([t, self.prob])
 
 
     # Export prob data to csv file

@@ -32,6 +32,7 @@ def generate_launch_description():
     def launch_setup(context, *args, **kwargs):
 
         dataset = LaunchConfiguration("dataset").perform(context)
+        rate = LaunchConfiguration("rate").perform(context)
 
         bag_paths = {
             "polo1": "/media/henrique/T9/Datasets AgileX/PoloII_26-06-2026/nosmokey",
@@ -51,7 +52,7 @@ def generate_launch_description():
 
         return [
             ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', bag_path,'--clock','--rate', '0.5'],
+            cmd=['ros2', 'bag', 'play', bag_path,'--clock','--rate', rate],
             output='screen',
             )
         ]
@@ -61,11 +62,15 @@ def generate_launch_description():
     return LaunchDescription([
 
         DeclareLaunchArgument("egovelocity",default_value="true"),
-        DeclareLaunchArgument("point_algorithm",default_value="kdtree"),
+        DeclareLaunchArgument("point_algorithm",default_value="fov"),
         DeclareLaunchArgument("fusion",default_value="true"),
         DeclareLaunchArgument("lidar",default_value="false"),
-        DeclareLaunchArgument("radar",default_value="false"),  
+        DeclareLaunchArgument("radar",default_value="true"),  
         DeclareLaunchArgument("LiDAR_used",default_value="hesai"),
+        DeclareLaunchArgument("dataset",default_value="polo2"),
+        DeclareLaunchArgument("rate",default_value="0.8"),
+        DeclareLaunchArgument("start_lidar_threshold",default_value="0.7"),
+        DeclareLaunchArgument("stop_lidar_threshold",default_value="0.2"),
 
         #Launch Hesai driver node for lidar pointcloud
         launch_ros.actions.Node(
@@ -78,7 +83,7 @@ def generate_launch_description():
         #GenZ-ICP Odometry node (LiDAR/FMCW LiDAR) 
         ExecuteProcess(
             cmd=[
-                'ros2', 'launch', 'genz_icp', 'odometry.launch.py',
+                'ros2', 'launch', 'kiss_icp', 'odometry.launch.py',
                 'topic:=/hesai/points'
                 #'topic:=/aeva/ATLAS/point_cloud_compensated'
             ],
@@ -143,11 +148,12 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration("fusion")),
         ),
 
-        #Node that computes the covariances of the odometry messages based on the point ratio
+        #Node that restarts the lidar node based on the point ratio
         launch_ros.actions.Node(
             package="point_ratio",
             executable="restart_node",
             name="restart_node",
+            parameters=[{"start_lidar_threshold": LaunchConfiguration("start_lidar_threshold"), "stop_lidar_threshold": LaunchConfiguration("stop_lidar_threshold")}],
             output="screen",
             condition=IfCondition(LaunchConfiguration("fusion")),
         ),
@@ -172,10 +178,5 @@ def generate_launch_description():
         ),
 
         # Play selected bag file with selected rate
-        DeclareLaunchArgument(
-            "dataset",
-            default_value="pinhal3",
-            description="Dataset to use"
-        ),
         OpaqueFunction(function=launch_setup)
 ])

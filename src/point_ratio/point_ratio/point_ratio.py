@@ -27,6 +27,7 @@ class PointRatio(Node):
         self.radar_points = 1.0
         self.lidar_points = 1.0
         self.max_points   = 1.0
+        self.running = True
 
         self.lidar_xyz = np.zeros((0, 3))
         self.radar_xyz = np.zeros((0, 3))
@@ -55,11 +56,13 @@ class PointRatio(Node):
         if self.mode == "hesai":
             self.create_subscription(PointCloud2, "/hesai/points",               self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data", self.radar_callback, 10)
-
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/fitered_hesai", 10)
+        
         elif self.mode == "aeva":
             self.create_subscription(PointCloud2, "/aeva/ATLAS/point_cloud_compensated", self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data",         self.radar_callback, 10)
-
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_aeva", 10)
+        
     # FOV filter
     def filter_by_fov_and_range(self, pts):
         if len(pts) == 0:
@@ -101,6 +104,11 @@ class PointRatio(Node):
         # 
         self._sensor_ratio = 0.5 * self._lidar_ratio + 0.5 * fov_ratio
 
+        if self._sensor_ratio<0.2:
+            self.running=False
+        elif self._sensor_ratio>0.7 and not self.running:
+            self.running=True
+
         self.publish()
 
         # Append time and probability to log for CSV export
@@ -122,6 +130,8 @@ class PointRatio(Node):
         self.max_points   = float(msg.width * msg.height)
 
         self.probability()
+        if self.running:
+             self.pub_lidar_pcl.publish(msg)
 
     
     def publish(self):

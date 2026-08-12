@@ -26,14 +26,12 @@ class KissManager(Node):
         self.mode = self.get_parameter("mode").value
 
         if self.mode == "hesai":
-            self.topic = "/hesai/points"
+            self.topic = "/fitered_hesai"
         else:
-            self.topic = "/aeva/ATLAS/point_cloud_compensated"
+            self.topic = "/fitered_aeva"
 
         self.create_subscription(Float64,"/point_ratio",self.callback,10)
         self.create_subscription(Odometry,"/odometry/filtered",self.pose_callback,10)
-
-        self.set_pose_client = self.create_client(SetPose,"/set_pose")
 
 
     def pose_callback(self, msg):
@@ -72,37 +70,11 @@ class KissManager(Node):
             [
                 "ros2", "launch", "genz_icp", "odometry.launch.py",
                 f"topic:={self.topic}",
-            ] + pose_args,
-            preexec_fn=os.setsid,  
+            ] + pose_args,  
         )
-
-        if self.last_pose_msg is not None:
-            self.call_set_pose(self.last_pose_msg)
 
         self.running = True
 
-    def call_set_pose(self, pose_msg):
-        if not self.set_pose_client.service_is_ready(): 
-            return
- 
-        request = SetPose.Request()
-        msg = PoseWithCovarianceStamped()
-        msg.header = pose_msg.header
-        msg.pose = pose_msg.pose
-        cov = [0.0] * 36
-        cov[0] = cov[7] = cov[14] = cov[21] = cov[28] = cov[35] = 0.05
-        msg.pose.covariance = cov
-        request.pose = msg
- 
-        future = self.set_pose_client.call_async(request)
-        future.add_done_callback(self._on_set_pose_response)
- 
-    def _on_set_pose_response(self, future):
-        try:
-            future.result()
-            self.get_logger().info("/set_pose call completed")
-        except Exception as e:
-            self.get_logger().warn(f"/set_pose call failed: {e}")
 
     def stop_kiss(self):
         if not self.running or self.proc is None:
@@ -140,10 +112,10 @@ class KissManager(Node):
 
     def callback(self, msg):
 
-        if msg.data <= 0.4:
+        if msg.data <= self.get_parameter("stop_lidar_threshold").get_value():
             self.stop_kiss()
 
-        elif msg.data >= 0.5:
+        elif msg.data >= self.get_parameter("start_lidar_threshold").get_value():
             self.start_kiss()
 
     def destroy_node(self):

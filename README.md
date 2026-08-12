@@ -30,7 +30,7 @@ Repository for the code related to the Radar based EKF LiDAR-Radar fusion develo
 
 Basic launch: ```ros2 launch robot_localization ekf.launch.py```
 
-Full launch example: ```ros2 launch robot_localization ekf.launch.py LiDAR_used:=aeva egovelocity:=true radar:=false fusion:=true point_algorithm:=fov lidar:=false dataset:=polo2```
+Full launch example: ```ros2 launch robot_localization ekf.launch.py LiDAR_used:=aeva egovelocity:=true radar:=false fusion:=true point_algorithm:=fov lidar:=false dataset:=polo2 rate:=0.5```
 
 **Customizable parameters:**
 
@@ -48,7 +48,7 @@ Use RADAR ego velocity estimation: egovelocity (false/true)
 
 Select detection algorithm: point_algorithm (fov/kdtree)
 
-
+Select bag replay speed: rate (0.1>)
 ---
 
 **Youtube Playlist:** [https://youtube.com/playlist?list=PL5dDSTSIq7yJWkVsNU3b_be_bDQzBtLgO&si=xRb-qyhVP9_qFgAG](https://youtube.com/playlist?list=PL5dDSTSIq7yJWkVsNU3b_be_bDQzBtLgO&si=xRb-qyhVP9_qFgAG)
