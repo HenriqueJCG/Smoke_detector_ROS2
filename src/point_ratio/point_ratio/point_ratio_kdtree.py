@@ -27,6 +27,7 @@ class PointRatio(Node):
         self.lidar_xyz = None
         self.kdtree = None
         self.kdtree_dirty = False
+        self.prob=1
 
 
         # Export data to CSV file
@@ -38,12 +39,13 @@ class PointRatio(Node):
         self.pub_prob = self.create_publisher(Float64, "point_ratio", 10)
         self.pub_lidar = self.create_publisher(Float64, "lidar_points", 10)
         self.pub_radar = self.create_publisher(Float64, "radar_points", 10)
+        self.pub_radar_pcl = self.create_publisher(PointCloud2, "/filtered_hugin", 10)
 
         # ROS subscribers
         if self.mode == "hesai":
             self.create_subscription(PointCloud2, "/hesai/points",               self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data", self.radar_callback, 10)
-            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/fitered_hesai", 10)
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_hesai", 10)
         
         elif self.mode == "aeva":
             self.create_subscription(PointCloud2, "/aeva/ATLAS/point_cloud_compensated", self.lidar_callback, 10)
@@ -86,9 +88,9 @@ class PointRatio(Node):
             self.kdtree = cKDTree(self.lidar_xyz)
             self.kdtree_dirty = False
 
-        if self.prob<0.2:
+        if self.prob<0.15:
            self.running=False
-        elif self.prob>0.7 and not self.running:
+        elif self.prob>0.4 and not self.running:
             self.running=True
 
         if self.running:
@@ -124,6 +126,8 @@ class PointRatio(Node):
         self.prob = 0.5 * match_ratio + 0.5 * lidar_ratio
 
         self.publish(self.prob)
+        if not self.running:
+             self.pub_radar_pcl.publish(msg)
 
         # Append time and probability to log for CSV export
         t = self.get_clock().now().nanoseconds / 1e9 - self.start_time

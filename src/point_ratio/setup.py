@@ -30,6 +30,7 @@ setup(
             'radar_text_marker = point_ratio.radar_text_marker:main',
             'egovelocity = point_ratio.egovelocity:main',
             'restart_node = point_ratio.restart_node:main',
+            'restart2_node = point_ratio.restart2_node:main',
         ],
     },
 )

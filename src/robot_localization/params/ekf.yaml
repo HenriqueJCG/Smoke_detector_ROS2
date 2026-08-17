@@ -152,7 +152,7 @@ ekf_filter_node:
         pose0_queue_size: 5
         pose0_rejection_threshold: 2.0  # Note the difference in parameter name
 
-        twist0: radar/ego_velocity
+        twist0: example/twist
         twist0_config: [false, false, false,
                         false, false, false,
                         true,  true,  true,

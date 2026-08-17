@@ -18,17 +18,19 @@ class KissManager(Node):
     def __init__(self):
         super().__init__("kiss_manager")
 
-        self.running = False
+        self.running = True
         self.proc = None
         self.last_pose_msg = None
 
         self.declare_parameter("mode", "hesai")
+        self.declare_parameter("stop_lidar_threshold", 0.2)
+        self.declare_parameter("start_lidar_threshold", 0.7)
         self.mode = self.get_parameter("mode").value
 
         if self.mode == "hesai":
-            self.topic = "/fitered_hesai"
+            self.topic = "/filtered_hesai"
         else:
-            self.topic = "/fitered_aeva"
+            self.topic = "/filtered_aeva"
 
         self.create_subscription(Float64,"/point_ratio",self.callback,10)
         self.create_subscription(Odometry,"/odometry/filtered",self.pose_callback,10)
@@ -57,8 +59,8 @@ class KissManager(Node):
             p = self.last_pose_msg.pose.pose
             pose_args = [
                 "use_initial_pose:=true",
-                f"initial_pose_x:={p.position.y}",
-                f"initial_pose_y:={-p.position.x}",
+                f"initial_pose_x:={p.position.x}",
+                f"initial_pose_y:={p.position.y}",
                 f"initial_pose_z:={p.position.z}",
                 f"initial_pose_qx:={p.orientation.x}",
                 f"initial_pose_qy:={p.orientation.y}",
@@ -71,6 +73,7 @@ class KissManager(Node):
                 "ros2", "launch", "genz_icp", "odometry.launch.py",
                 f"topic:={self.topic}",
             ] + pose_args,  
+            start_new_session=True,
         )
 
         self.running = True
@@ -112,10 +115,10 @@ class KissManager(Node):
 
     def callback(self, msg):
 
-        if msg.data <= self.get_parameter("stop_lidar_threshold").get_value():
+        if msg.data <= self.get_parameter("stop_lidar_threshold").value:
             self.stop_kiss()
 
-        elif msg.data >= self.get_parameter("start_lidar_threshold").get_value():
+        elif msg.data >= self.get_parameter("start_lidar_threshold").value:
             self.start_kiss()
 
     def destroy_node(self):

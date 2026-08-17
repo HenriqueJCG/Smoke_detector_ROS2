@@ -51,12 +51,13 @@ class PointRatio(Node):
         self.pub       = self.create_publisher(Float64, "point_ratio",  10)
         self.pub_lidar = self.create_publisher(Float64, "lidar_points", 10)
         self.pub_radar = self.create_publisher(Float64, "radar_points", 10)
+        self.pub_radar_pcl = self.create_publisher(PointCloud2, "/filtered_hugin", 10)
 
         # ROS subscribers
         if self.mode == "hesai":
             self.create_subscription(PointCloud2, "/hesai/points",               self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data", self.radar_callback, 10)
-            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/fitered_hesai", 10)
+            self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_hesai", 10)
         
         elif self.mode == "aeva":
             self.create_subscription(PointCloud2, "/aeva/ATLAS/point_cloud_compensated", self.lidar_callback, 10)
@@ -121,6 +122,8 @@ class PointRatio(Node):
         self.radar_xyz    = self.cloud_to_xyz(msg)
 
         self.probability()
+        if not self.running:
+             self.pub_radar_pcl.publish(msg)
 
     def lidar_callback(self, msg):
         pts = []

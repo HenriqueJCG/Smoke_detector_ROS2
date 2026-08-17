@@ -184,6 +184,15 @@ class RadarEgoVelocity(Node):
         odom.twist.twist.linear.x = float(velocity[0])
         odom.twist.twist.linear.y = float(velocity[1])
         odom.twist.twist.linear.z = float(velocity[2])
+
+        odom.pose.covariance = [0.0] * 36
+        odom.pose.covariance[0] = 0.05
+        odom.pose.covariance[7] = 0.05
+        odom.pose.covariance[14] = 0.05
+        odom.pose.covariance[21] = 0.05
+        odom.pose.covariance[28] = 0.05
+        odom.pose.covariance[35] = 0.05
+
         self.odom_pub.publish(odom)
 
     @staticmethod
