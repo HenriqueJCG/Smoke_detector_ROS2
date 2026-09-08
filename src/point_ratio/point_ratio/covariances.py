@@ -13,7 +13,7 @@ class SmokeGatedCovarianceNode(Node):
         super().__init__('smoke_gated_covariance_node')
 
         self.declare_parameter('lidar_odom_topic', '/genz/odometry')
-        self.declare_parameter('radar_odom_topic', 'kiss/odometry')#'/radar/odometry_dead_reckoned')
+        self.declare_parameter('radar_odom_topic', '/radar/odometry_dead_reckoned')
         self.declare_parameter('smoke_topic', '/point_ratio')
         self.declare_parameter('lidar_odom_out_topic', '/odom/lidar')
         self.declare_parameter('radar_odom_out_topic', '/odom/radar')

@@ -61,13 +61,13 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        DeclareLaunchArgument("egovelocity",default_value="false"),
-        DeclareLaunchArgument("point_algorithm",default_value="kdtree"),
+        DeclareLaunchArgument("egovelocity",default_value="true"),
+        DeclareLaunchArgument("point_algorithm",default_value="fov"),
         DeclareLaunchArgument("fusion",default_value="true"),
         DeclareLaunchArgument("lidar",default_value="false"),
         DeclareLaunchArgument("radar",default_value="false"),  
         DeclareLaunchArgument("LiDAR_used",default_value="hesai"),
-        DeclareLaunchArgument("dataset",default_value="pinhal1"),
+        DeclareLaunchArgument("dataset",default_value="polo2"),
         DeclareLaunchArgument("rate",default_value="0.8"),
         DeclareLaunchArgument("start_lidar_threshold",default_value="0.7"),
         DeclareLaunchArgument("stop_lidar_threshold",default_value="0.2"),
@@ -151,7 +151,7 @@ def generate_launch_description():
         #Node that restarts the lidar node based on the point ratio
         launch_ros.actions.Node(
             package="point_ratio",
-            executable="restart2_node",
+            executable="restart_node",
             name="restart_node",
             parameters=[{"start_lidar_threshold": LaunchConfiguration("start_lidar_threshold"), "stop_lidar_threshold": LaunchConfiguration("stop_lidar_threshold")}],
             output="screen",

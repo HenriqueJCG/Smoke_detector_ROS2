@@ -6,15 +6,9 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointCloud
 from std_msgs.msg import Float64
 
-# ── Sensor overlap constants ───────────────────────────────────────────────────
-# Bottleneck per mode:
-#   hesai/aeva → Hugin D1      : 100° az, ±15° el,  78 m
-#   default    → Hugin D1      : 100° az, ±15° el,  78 m
-
 FOV_PARAMS = {
-    "hesai":     dict(max_range=78.0,  h_fov=100.0, v_min=-15.0, v_max=15.0),
+    "hesai":     dict(max_range=20.0,  h_fov=100.0, v_min=-15.0, v_max=15.0),
     "aeva":      dict(max_range=78.0,  h_fov=100.0, v_min=-15.0, v_max=15.0),
-    "default":   dict(max_range=78.0,  h_fov=100.0, v_min=-15.0, v_max=15.0),
 }
 
 
@@ -41,7 +35,7 @@ class PointRatio(Node):
         # Parameters
         self.mode = self.declare_parameter("mode", "hesai").value
 
-        p = FOV_PARAMS.get(self.mode, FOV_PARAMS["default"])
+        p = FOV_PARAMS.get(self.mode, FOV_PARAMS["hesai"])
         self.max_range = p["max_range"]
         self.h_fov     = p["h_fov"]
         self.v_min     = p["v_min"]
