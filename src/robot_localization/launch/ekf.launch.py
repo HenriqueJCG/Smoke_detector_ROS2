@@ -61,9 +61,9 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        DeclareLaunchArgument("egovelocity",default_value="true"),
+        DeclareLaunchArgument("egovelocity",default_value="false"),
         DeclareLaunchArgument("point_algorithm",default_value="fov"),
-        DeclareLaunchArgument("fusion",default_value="true"),
+        DeclareLaunchArgument("fusion",default_value="false"),
         DeclareLaunchArgument("lidar",default_value="false"),
         DeclareLaunchArgument("radar",default_value="false"),  
         DeclareLaunchArgument("LiDAR_used",default_value="hesai"),

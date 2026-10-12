@@ -15,7 +15,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 from sensor_msgs.msg import PointCloud2, PointCloud
 
 
-class KissManager(Node):
+class Manager(Node):
 
     def __init__(self):
         super().__init__("kiss_manager")
@@ -62,7 +62,7 @@ class KissManager(Node):
     def lidar_pose_callback(self, msg):
         self.last_pose_msg = msg
 
-    def start_kiss(self):
+    def start_lidar(self):
 
         if (self.running and self.proc is not None and self.proc.poll() is None):
             return
@@ -102,7 +102,7 @@ class KissManager(Node):
         self.running = True
 
 
-    def stop_kiss(self):
+    def stop_lidar(self):
         if not self.running or self.proc is None:
             return
  
@@ -126,7 +126,7 @@ class KissManager(Node):
         self.proc = None
         self.running = False
 
-    def start_genz(self):
+    def start_radar(self):
 
         if (not self.running and self.proc2 is not None and self.proc2.poll() is None):
             return
@@ -166,7 +166,7 @@ class KissManager(Node):
         self.running = False
 
 
-    def stop_genz(self):
+    def stop_radar(self):
         if not self.running or self.proc2 is None:
             return
  
@@ -203,15 +203,15 @@ class KissManager(Node):
     def callback(self, msg):
 
         if msg.data <= self.get_parameter("stop_lidar_threshold").value:
-            self.stop_kiss()
-            self.start_genz()
+            self.stop_lidar()
+            self.start_radar()
 
         elif msg.data >= self.get_parameter("start_lidar_threshold").value:
-            self.stop_genz()
-            self.start_kiss()
+            self.stop_radar()
+            self.start_lidar()
 
     def destroy_node(self):
-        self.stop_kiss()
+        self.stop_lidar()
         super().destroy_node()
 
 
@@ -219,10 +219,10 @@ def main(args=None):
 
     rclpy.init(args=args)
 
-    node = KissManager()
+    node = Manager()
 
-    node.start_kiss()
-    node.stop_genz()
+    node.start_lidar()
+    node.stop_radar()
 
     try:
         rclpy.spin(node)

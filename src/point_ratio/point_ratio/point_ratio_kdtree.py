@@ -6,6 +6,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointCloud
 from std_msgs.msg import Float64
 from scipy.spatial import cKDTree
+import tf2_ros
+from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 
 
 class PointRatio(Node):
@@ -34,6 +36,10 @@ class PointRatio(Node):
         self.log = []
         self.start_time = self.get_clock().now().nanoseconds / 1e9
 
+        self.base_frame = "base_link"
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         # ROS publishers
         self.pub_prob = self.create_publisher(Float64, "point_ratio", 10)
@@ -52,6 +58,39 @@ class PointRatio(Node):
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data",         self.radar_callback, 10)
             self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_aeva", 10)
         
+
+    def transform_points_to_base(self, pts, msg):
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.base_frame,
+                msg.header.frame_id,
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+
+            t = transform.transform.translation
+            q = transform.transform.rotation
+
+            # Rotation matrix from quaternion
+            x, y, z, w = q.x, q.y, q.z, q.w
+
+            R = np.array([
+                [1 - 2*(y*y + z*z), 2*(x*y - z*w),     2*(x*z + y*w)],
+                [2*(x*y + z*w),     1 - 2*(x*x + z*z), 2*(y*z - x*w)],
+                [2*(x*z - y*w),     2*(y*z + x*w),     1 - 2*(x*x + y*y)]
+            ])
+
+            translation = np.array([t.x, t.y, t.z])
+
+            return pts @ R.T + translation
+
+        except Exception as e:
+            self.get_logger().warning(
+                f"Could not transform {msg.header.frame_id} -> "
+                f"{self.base_frame}: {e}"
+            )
+            return None
+
     # Convert pointcloud message to numpy array of xyz coordinates
     def cloud_to_xyz(self, msg):
         pts = []
@@ -72,16 +111,23 @@ class PointRatio(Node):
 
         pts = []
 
+        self.lidar_xyz = self.cloud_to_xyz(msg)
+
+        if len(self.lidar_xyz) == 0:
+            return
+
+        self.lidar_xyz = self.transform_points_to_base(
+            self.lidar_xyz, msg
+        )
+
+        if self.lidar_xyz is None:
+            return
+
         #Update LiDAR points count
         self.lidar_points = sum(1 for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True) if not (p[0] == 0 and p[1] == 0 and p[2] == 0))
 
         self.max_points = float(msg.width * msg.height)
-        pts = self.cloud_to_xyz(msg) #Create array of xyz coordinates from pointcloud message
-
-        if len(pts) == 0:
-            return
-
-        self.lidar_xyz = pts
+        
 
         #If there are enough LiDAR points, create a KD-tree for fast nearest neighbor search
         if len(self.lidar_xyz) > 10:
@@ -102,15 +148,23 @@ class PointRatio(Node):
         if self.kdtree is None:
             return
 
-        # Get radar xyz coordinates array from pointcloud message and total radar points count
-        pts = self.cloud_to_xyz(msg)
-        self.radar_points = float(msg.width * msg.height)
+        self.radar_xyz = self.cloud_to_xyz(msg)
 
-        if len(pts) == 0:
+        if len(self.radar_xyz) == 0:
             return
 
+        self.radar_xyz = self.transform_points_to_base(
+            self.radar_xyz, msg
+        )
+
+        if self.radar_xyz is None:
+            return
+
+        self.radar_points = float(len(self.radar_xyz))
+
+
         #Convert to numpy array for KD-tree query
-        pts = np.array(pts)
+        pts = np.array(self.radar_xyz)
 
         # Query KD-tree for nearest neighbor distances and count matches within threshold
         dists, _ = self.kdtree.query(pts, k=1)

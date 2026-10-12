@@ -5,6 +5,8 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointCloud
 from std_msgs.msg import Float64
+import tf2_ros
+from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 
 FOV_PARAMS = {
     "hesai":     dict(max_range=20.0,  h_fov=100.0, v_min=-15.0, v_max=15.0),
@@ -32,6 +34,11 @@ class PointRatio(Node):
         self._lidar_ratio  = 1.0
         self._sensor_ratio = 1.0
 
+        self.base_frame = "base_link"
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
         # Parameters
         self.mode = self.declare_parameter("mode", "hesai").value
 
@@ -57,7 +64,39 @@ class PointRatio(Node):
             self.create_subscription(PointCloud2, "/aeva/ATLAS/point_cloud_compensated", self.lidar_callback, 10)
             self.create_subscription(PointCloud2, "/sensrad/radar_1/radar_data",         self.radar_callback, 10)
             self.pub_lidar_pcl = self.create_publisher(PointCloud2, "/filtered_aeva", 10)
-        
+    
+    def transform_points_to_base(self, pts, msg):
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.base_frame,
+                msg.header.frame_id,
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+
+            t = transform.transform.translation
+            q = transform.transform.rotation
+
+            # Rotation matrix from quaternion
+            x, y, z, w = q.x, q.y, q.z, q.w
+
+            R = np.array([
+                [1 - 2*(y*y + z*z), 2*(x*y - z*w),     2*(x*z + y*w)],
+                [2*(x*y + z*w),     1 - 2*(x*x + z*z), 2*(y*z - x*w)],
+                [2*(x*z - y*w),     2*(y*z + x*w),     1 - 2*(x*x + y*y)]
+            ])
+
+            translation = np.array([t.x, t.y, t.z])
+
+            return pts @ R.T + translation
+
+        except Exception as e:
+            self.get_logger().warning(
+                f"Could not transform {msg.header.frame_id} -> "
+                f"{self.base_frame}: {e}"
+            )
+            return None
+            
     # FOV filter
     def filter_by_fov_and_range(self, pts):
         if len(pts) == 0:
@@ -111,20 +150,39 @@ class PointRatio(Node):
         self.log.append([t, self._sensor_ratio])
 
     def radar_callback(self, msg):
+        self.radar_xyz = self.cloud_to_xyz(msg)
 
-        self.radar_points = float(msg.width * msg.height)
-        self.radar_xyz    = self.cloud_to_xyz(msg)
+        if len(self.radar_xyz) == 0:
+            return
+
+        self.radar_xyz = self.transform_points_to_base(
+            self.radar_xyz, msg
+        )
+
+        if self.radar_xyz is None:
+            return
+
+        self.radar_points = float(len(self.radar_xyz))
 
         self.probability()
         if not self.running:
              self.pub_radar_pcl.publish(msg)
 
     def lidar_callback(self, msg):
-        pts = []
+        self.lidar_xyz = self.cloud_to_xyz(msg)
 
-        self.lidar_xyz    = self.cloud_to_xyz(msg)
+        if len(self.lidar_xyz) == 0:
+            return
+
+        self.lidar_xyz = self.transform_points_to_base(
+            self.lidar_xyz, msg
+        )
+
+        if self.lidar_xyz is None:
+            return
+
         self.lidar_points = float(len(self.lidar_xyz))
-        self.max_points   = float(msg.width * msg.height)
+        self.max_points = float(msg.width * msg.height)
 
         self.probability()
         if self.running:

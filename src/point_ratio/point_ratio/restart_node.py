@@ -13,7 +13,7 @@ from robot_localization.srv import SetPose
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
 
-class KissManager(Node):
+class Manager(Node):
 
     def __init__(self):
         super().__init__("kiss_manager")
@@ -39,7 +39,7 @@ class KissManager(Node):
     def pose_callback(self, msg):
         self.last_pose_msg = msg
 
-    def start_kiss(self):
+    def start(self):
 
         if (self.running and self.proc is not None and self.proc.poll() is None):
             return
@@ -79,7 +79,7 @@ class KissManager(Node):
         self.running = True
 
 
-    def stop_kiss(self):
+    def stop(self):
         if not self.running or self.proc is None:
             return
  
@@ -116,13 +116,13 @@ class KissManager(Node):
     def callback(self, msg):
 
         if msg.data <= self.get_parameter("stop_lidar_threshold").value:
-            self.stop_kiss()
+            self.stop()
 
         elif msg.data >= self.get_parameter("start_lidar_threshold").value:
-            self.start_kiss()
+            self.start()
 
     def destroy_node(self):
-        self.stop_kiss()
+        self.stop()
         super().destroy_node()
 
 
@@ -130,9 +130,9 @@ def main(args=None):
 
     rclpy.init(args=args)
 
-    node = KissManager()
+    node = Manager()
 
-    node.start_kiss()
+    node.start()
 
     try:
         rclpy.spin(node)
